@@ -1,0 +1,98 @@
+version: '3'
+services:
+
+  #PHP Service
+  andrei_php:
+    build:
+      context: .
+      dockerfile: ./docker/php/Dockerfile
+    container_name: andrei_php
+    restart: unless-stopped
+    tty: true
+    environment:
+      SERVICE_NAME: website
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./backend:/var/www
+      - ./docker/php/local.ini:/usr/local/etc/php/conf.d/local.ini
+    networks:
+      - andrei-network
+
+  #Nginx Service
+  andrei_nginx:
+    image: nginx
+    container_name: andrei_nginx
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "88:80"
+    volumes:
+      - ./backend:/var/www
+      - ./docker/nginx/conf.d/:/etc/nginx/conf.d/
+    networks:
+      - andrei-network
+
+  #Node Service
+  andrei_node:
+    image: node
+    container_name: andrei_node
+    restart: unless-stopped
+    tty: true
+    ports:
+      - "5007:5007"
+    environment:
+      SERVICE_NAME: app
+      SERVICE_TAGS: dev
+    working_dir: /var/www
+    volumes:
+      - ./frontend:/var/www
+    networks:
+      - andrei-network
+
+  #Mysql Service
+  andrei_db:
+    image: mysql
+    container_name: andrei_db
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password
+    ports:
+      - "33063:3306"
+    volumes:
+      - ./docker/mysql/dbdata:/var/lib/mysql
+      - ./docker/mysql/conf:/etc/mysql/conf.d
+      - ./docker/mysql/mysql-files:/var/lib/mysql-files
+    environment:
+      MYSQL_ROOT_PASSWORD: 3330
+      MYSQL_DATABASE: laravel
+    networks:
+      - andrei-network
+
+  #Phpmyadmin Service
+  andrei_phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: andrei_phpmyadmin
+    ports:
+      - "8107:80"
+    links:
+      - andrei_db:db
+    networks:
+      - andrei-network
+
+  # Redis
+  andrei_redis:
+    image: redis:6.2-alpine
+    container_name: andrei_redis
+    restart: always
+    ports:
+      - '63791:6379'
+    command: redis-server --save 20 1 --loglevel warning
+    volumes:
+      - ./docker/redis/conf:/etc/redis
+      - ./docker/redis:/data
+    networks:
+      - andrei-network
+
+#Docker Networks
+networks:
+  andrei-network:
